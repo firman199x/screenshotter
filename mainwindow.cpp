@@ -6,6 +6,7 @@
 #include <QClipboard>
 #include <QImage>
 #include <QMessageBox>
+#include <QPainter>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -45,17 +46,30 @@ void MainWindow::on_screenshotButton_clicked()
         return;
     }
 
-    QScreen *screen = QGuiApplication::primaryScreen();
-    QImage screenshot = screen->grabWindow(0).toImage();
+    // Hide the main window to exclude it from the screenshot
+    hide();
 
-    if (screenshot.isNull()) {
-        QMessageBox::critical(this, "Error", "Failed to capture screenshot.");
-        return;
+    // Capture all screens and combine into one image
+    QList<QScreen *> screens = QGuiApplication::screens();
+    QRect totalGeometry = screens.first()->virtualGeometry();
+    QImage combinedImage(totalGeometry.width(), totalGeometry.height(), QImage::Format_ARGB32_Premultiplied);
+    combinedImage.fill(Qt::transparent);
+
+    QPainter painter(&combinedImage);
+    for (QScreen *screen : screens) {
+        QRect screenRect = screen->geometry();
+        QImage screenShot = screen->grabWindow(0).toImage();
+        painter.drawImage(screenRect.topLeft(), screenShot);
     }
+    painter.end();
 
-    QImage croppedImage = screenshot.copy(selectionRect);
+    // Crop the combined image using the global selection rectangle
+    QImage croppedImage = combinedImage.copy(selectionRect);
+
     QApplication::clipboard()->setImage(croppedImage);
 
-    QMessageBox::information(this, "Success", "Screenshot copied to clipboard.");
+    // Show the main window again
+    show();
+
 }
 
