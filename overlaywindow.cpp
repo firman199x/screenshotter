@@ -1,14 +1,15 @@
 #include "overlaywindow.h"
+
+#include <QDebug>  // For console output
+#include <QGuiApplication>
 #include <QPainter>
 #include <QPen>
 #include <QScreen>
-#include <QGuiApplication>
-#include <QDebug> // For console output
 
-OverlayWindow::OverlayWindow(QWidget *parent)
-    : QWidget(parent)
+OverlayWindow::OverlayWindow(QWidget *parent) : QWidget(parent)
 {
-    setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    setWindowFlags(Qt::Window | Qt::FramelessWindowHint |
+                   Qt::WindowStaysOnTopHint);
     setAttribute(Qt::WA_TranslucentBackground);
     setMouseTracking(true);
     setCursor(Qt::CrossCursor);
@@ -21,21 +22,17 @@ OverlayWindow::OverlayWindow(QWidget *parent)
     resize(totalGeometry.width(), totalGeometry.height());
     move(totalGeometry.topLeft());
 
-    // Debug prints
-    qDebug() << "Overlay size:" << size();
-    qDebug() << "Overlay position:" << pos();
-    qDebug() << "Total screen geometry:" << totalGeometry;
-
-    // Ensure the overlay is visible and on top
     raise();
     activateWindow();
 }
 
 void OverlayWindow::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (isSelecting && event->button() == Qt::LeftButton) {
-        selectionRect.setBottomRight(event->globalPosition().toPoint());
-        emit rectangleSelected(selectionRect);
+    if (event->button() == Qt::LeftButton) {
+        end_point_ = event->pos();
+        drawRec = QRect(start_point_, end_point_).normalized();
+        selected_area.setBottomRight(event->globalPosition().toPoint());
+        emit RectangleSelected(selected_area);
         close();
     }
 }
@@ -43,34 +40,32 @@ void OverlayWindow::mouseReleaseEvent(QMouseEvent *event)
 void OverlayWindow::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
+
     QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.fillRect(rect(), QColor(255, 255, 255, 50));  // 128 = 50% opacity
 
-    // Fill the background with semi-transparent white (50% opacity)
-    painter.fillRect(rect(), QColor(255, 255, 255, 128)); // 128 = 50% opacity
-
-    if (isSelecting && !selectionRect.isNull()) {
-        // QPoint overlayPos = pos(); // Overlay's global top-left corner
-        // QRect adjustedRect = selectionRect.translated(-overlayPos.x(), -overlayPos.y());
-        // painter.setPen(QPen(Qt::red, 2, Qt::DashLine));
-        // painter.drawRect(selectionRect);
-    }
+    painter.setPen(QPen(Qt::white, 1));
+    painter.drawRect(drawRec);
 }
 
 void OverlayWindow::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
-        isSelecting = true;
-        startPoint = event->globalPosition().toPoint(); // Global coordinates
-        selectionRect.setTopLeft(startPoint);
-        selectionRect.setBottomRight(startPoint);
+        start_point_ = event->pos();
+        end_point_ = start_point_;
+        drawRec = QRect(start_point_, end_point_);
+        selected_area.setTopLeft(event->globalPosition().toPoint());
         update();
     }
 }
 
 void OverlayWindow::mouseMoveEvent(QMouseEvent *event)
 {
-    if (isSelecting && (event->buttons() & Qt::LeftButton)) {
-        selectionRect.setBottomRight(event->globalPosition().toPoint()); // Global coordinates
+    if (event->buttons() & Qt::LeftButton) {
+        end_point_ = event->pos();
+        drawRec = QRect(start_point_, end_point_).normalized();
+        selected_area.setBottomRight(event->globalPosition().toPoint());
         update();
     }
 }

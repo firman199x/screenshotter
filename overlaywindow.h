@@ -14,18 +14,21 @@ public:
     ~OverlayWindow() override = default;
 
 protected:
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
-    void paintEvent(QPaintEvent *event) override;
+  // Cannot rename this method because inheritted from QWidget
+  void mousePressEvent(QMouseEvent *event) override;
+  void mouseMoveEvent(QMouseEvent *event) override;
+  void mouseReleaseEvent(QMouseEvent *event) override;
+  void paintEvent(QPaintEvent *event) override;
 
 signals:
-    void rectangleSelected(const QRect &rect);
+    void RectangleSelected(const QRect &rect);
 
 private:
     bool isSelecting = false;
-    QPoint startPoint;
-    QRect selectionRect;
+    QPoint start_point_;
+    QPoint end_point_;
+    QRect selected_area;
+    QRect drawRec;
 };
 
 #endif // OVERLAYWINDOW_H
