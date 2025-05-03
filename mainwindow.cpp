@@ -55,28 +55,38 @@ void MainWindow::on_screenshotButton_clicked()
     ScreenShot();
 }
 
-void MainWindow::ScreenShot()
-{
+void MainWindow::ScreenShot() {
     hide();
-
     QList<QScreen *> screens = QGuiApplication::screens();
-    QRect totalGeometry = screens.first()->virtualGeometry();
-    QImage combinedImage(totalGeometry.width(), totalGeometry.height(),
-                         QImage::Format_ARGB32_Premultiplied);
-    combinedImage.fill(Qt::transparent);
-
-    QPainter painter(&combinedImage);
+    QScreen *targetScreen = nullptr;
     for (QScreen *screen : screens) {
-        QRect screenRect = screen->geometry();
-        QImage screenShot = screen->grabWindow(0).toImage();
-        painter.drawImage(screenRect.topLeft(), screenShot);
+        if (screen->geometry().contains(selected_area)) {
+            targetScreen = screen;
+            break;
+        }
     }
-    painter.end();
 
-    QImage croppedImage = combinedImage.copy(selected_area);
+    if (!targetScreen) {
+        qWarning() << "Selected area does not intersect with any screen.";
+        show();
+        return;
+    }
 
-    QApplication::clipboard()->setImage(croppedImage);
+    QRect screenRect = targetScreen->geometry();
+    qreal devicePixelRatio = targetScreen->devicePixelRatio();
+    QPixmap screenPixmap = targetScreen->grabWindow(0);
+    QRect scaledSelectedArea(
+        (selected_area.x() - screenRect.x()) * devicePixelRatio,
+        (selected_area.y() - screenRect.y()) * devicePixelRatio,
+        selected_area.width() * devicePixelRatio,
+        selected_area.height() * devicePixelRatio
+    );
 
+    QPixmap croppedPixmap = screenPixmap.copy(scaledSelectedArea);
+    QImage croppedImage = croppedPixmap.toImage().convertToFormat(
+        QImage::Format_ARGB32_Premultiplied);
+
+    QApplication::clipboard()->setPixmap(croppedPixmap);
     show();
 }
 
